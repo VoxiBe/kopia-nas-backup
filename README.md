@@ -146,6 +146,19 @@ Before relying on this setup for important data, test the complete restoration p
 - Review and adapt all paths before running the scripts.
 - Test restores regularly.
 
+## Acknowledgements
+
+This project relies on several excellent open-source tools and projects:
+
+- [Kopia](https://kopia.io/) — for fast, encrypted, deduplicated snapshots and backup management
+- [Docker](https://www.docker.com/) — for containerized application management
+- [SQLite](https://www.sqlite.org/) — for consistent backups of SQLite-based applications
+- [PostgreSQL](https://www.postgresql.org/) — used by Immich and backed up through `pg_dumpall`
+- [Redis](https://redis.io/) — used by Yamtrack and included in the backup pipeline
+- [Telegram Bot API](https://core.telegram.org/bots/api) — for backup notifications
+
+Special thanks to the Kopia developers and contributors for building such a powerful and flexible backup solution.
+
 ## Contributing
 
 Contributions, suggestions and bug reports are welcome.
