@@ -146,6 +146,12 @@ Before relying on this setup for important data, test the complete restoration p
 - Review and adapt all paths before running the scripts.
 - Test restores regularly.
 
+## Contributing
+
+Contributions, suggestions and bug reports are welcome.
+
+If you adapt the scripts for other applications, NAS platforms or backup workflows, feel free to open an issue or submit a pull request.
+
 ## Disclaimer
 
 This project is provided as-is and was created for a specific self-hosted environment.
