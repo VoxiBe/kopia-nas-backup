@@ -19,6 +19,23 @@ The goal is to create consistent database dumps before running Kopia snapshots, 
 - Measures total backup duration
 - Designed for unattended scheduled execution
 
+## Screenshots
+
+> The screenshots below come from my personal setup and are in French.  
+> The public scripts and documentation in this repository are written in English.
+
+### Backup execution
+
+Example of the full backup pipeline running on the NAS:
+
+![Backup execution](screenshots/backup-terminal.png)
+
+### Telegram notification
+
+Example of the final Telegram backup summary:
+
+<img src="screenshots/telegram-notification.jpg" alt="Telegram notification" width="500">
+
 ## How it works
 
 The backup process is split into two scripts:
