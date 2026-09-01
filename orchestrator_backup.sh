@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Initialisation du chronomètre
+# Initialize timer
 START_TIME=$SECONDS
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,27 +9,27 @@ ENV_FILE="${SCRIPT_DIR}/bot.env"
 DUMP_SCRIPT="${SCRIPT_DIR}/dump_bases.sh"
 CURL_TIMEOUT=10
 
-# --- Chargement des variables d'environnement ---
+# --- Load environment variables ---
 if [ -f "$ENV_FILE" ]; then
   set -a
   source "$ENV_FILE"
   set +a
 else
-  echo "Erreur : Fichier bot.env introuvable dans $SCRIPT_DIR" >&2
+  echo "Error: bot.env file not found in $SCRIPT_DIR" >&2
   exit 1
 fi
 
-# Échoue tôt et clairement si le .env est incomplet
-: "${BOT_TOKEN:?BOT_TOKEN manquant dans ${ENV_FILE}}"
-: "${CHAT_ID:?CHAT_ID manquant dans ${ENV_FILE}}"
+# Fail early with a clear message if the environment file is incomplete
+: "${BOT_TOKEN:?BOT_TOKEN is missing from ${ENV_FILE}}"
+: "${CHAT_ID:?CHAT_ID is missing from ${ENV_FILE}}"
 
-# Utilise "kopia-backup" par défaut si KOPIA_CONTAINER n'est pas défini
+# Use "kopia-backup" as the default container name if KOPIA_CONTAINER is not defined
 KOPIA_CONTAINER="${KOPIA_CONTAINER:-kopia-backup}"
 
-# Avertissement (non bloquant) si le .env est lisible par d'autres utilisateurs
+# Non-blocking warning if the environment file can be read by other users
 PERMS=$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%Lp' "$ENV_FILE" 2>/dev/null || echo "")
 if [ -n "$PERMS" ] && [ "$PERMS" != "600" ]; then
-  echo "Avertissement : permissions de $ENV_FILE trop ouvertes ($PERMS). Recommandé : chmod 600 $ENV_FILE" >&2
+  echo "Warning: permissions on $ENV_FILE are too permissive ($PERMS). Recommended: chmod 600 $ENV_FILE" >&2
 fi
 
 send_telegram() {
@@ -46,7 +46,7 @@ on_exit() {
   local exit_code=$?
 
   if [ "$exit_code" -ne 0 ]; then
-    send_telegram "❌ *Échec du backup NAS* (Code: $exit_code) : Une erreur est survenue lors du pipeline."
+    send_telegram "❌ *NAS backup failed* (Exit code: $exit_code): An error occurred during the backup pipeline."
   fi
 }
 
@@ -56,41 +56,41 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-log "Démarrage de la chaîne de sauvegarde..."
+log "Starting backup pipeline..."
 
-# 1. Dumps des bases de données
-echo "=== Étape 1 : Dumps des bases de données ==="
+# 1. Create database dumps
+echo "=== Step 1: Creating database backups ==="
 
 if [ ! -x "$DUMP_SCRIPT" ]; then
-  echo "Erreur : $DUMP_SCRIPT introuvable ou non exécutable" >&2
+  echo "Error: $DUMP_SCRIPT not found or not executable" >&2
   exit 1
 fi
 
 "$DUMP_SCRIPT"
 
-# 2. Exécution de Kopia et capture de la sortie
-echo "=== Étape 2 : Création des snapshots Kopia ==="
+# 2. Run Kopia and capture its output
+echo "=== Step 2: Creating Kopia snapshots ==="
 
 if docker ps --format '{{.Names}}' | grep -q "^${KOPIA_CONTAINER}$"; then
   KOPIA_OUTPUT=$(docker exec "$KOPIA_CONTAINER" kopia snapshot create --all 2>&1)
   echo "$KOPIA_OUTPUT"
 else
-  echo "Erreur : Conteneur Kopia introuvable ou arrêté" >&2
+  echo "Error: Kopia container not found or not running" >&2
   exit 1
 fi
 
-# 2bis. Détection explicite d'erreurs dans la sortie Kopia.
-# Un snapshot individuel peut échouer sans faire échouer la commande globale,
-# donc on ne peut pas se fier uniquement au code de retour de "docker exec".
+# 2bis. Explicitly detect errors in Kopia output.
+# An individual snapshot may fail without causing the overall command to fail,
+# so the exit code from "docker exec" alone is not always sufficient.
 if echo "$KOPIA_OUTPUT" | grep -Eiq 'error|failed|panic'; then
-  echo "Erreur détectée dans la sortie Kopia :" >&2
+  echo "Error detected in Kopia output:" >&2
   echo "$KOPIA_OUTPUT" | grep -Ei 'error|failed|panic' >&2
   exit 1
 fi
 
-# 3. Traitement dossier par dossier (compatible tout awk/busybox)
-# esc() échappe backtick et backslash pour ne pas casser le Markdown Telegram
-# si un nom de dossier contient l'un de ces caractères
+# 3. Process each snapshot individually (compatible with awk/BusyBox)
+# esc() escapes backticks and backslashes to prevent Telegram Markdown
+# formatting issues if a directory name contains either character.
 SNAPSHOT_DETAILS=$(echo "$KOPIA_OUTPUT" | awk '
   function esc(s) {
     gsub(/\\/, "\\\\", s)
@@ -104,17 +104,17 @@ SNAPSHOT_DETAILS=$(echo "$KOPIA_OUTPUT" | awk '
   }
 
   /Created snapshot/ {
-    if (dir != "") print "  • `" esc(dir) "` : ✅ *Nouveau snapshot*"
+    if (dir != "") print "  • `" esc(dir) "` : ✅ *New snapshot*"
     dir = ""
   }
 
   /Not saving snapshot/ {
-    if (dir != "") print "  • `" esc(dir) "` : ⏸️ _Inchangé_"
+    if (dir != "") print "  • `" esc(dir) "` : ⏸️ _Unchanged_"
     dir = ""
   }
 ')
 
-# 4. Calcul du temps écoulé
+# 4. Calculate elapsed time
 DURATION=$(( SECONDS - START_TIME ))
 MINUTES=$(( DURATION / 60 ))
 SECS=$(( DURATION % 60 ))
@@ -125,18 +125,18 @@ else
   TIME_STR="${SECS}s"
 fi
 
-# 5. Construction du message récapitulatif
+# 5. Build summary message
 if [ -z "$SNAPSHOT_DETAILS" ]; then
-  MESSAGE="⚠️ *Sauvegarde NAS terminée, détail inattendu*
-La commande Kopia s'est terminée sans erreur mais aucun dossier n'a été identifié dans la sortie. Vérifier manuellement le format (mise à jour de Kopia ?)."
+  MESSAGE="⚠️ *NAS backup completed with unexpected details*
+Kopia completed without reporting an error, but no snapshot directories were identified in its output. Please check the output format manually (possibly after a Kopia update)."
 else
-  MESSAGE="💾 *Sauvegarde NAS réussie en ${TIME_STR}*
+  MESSAGE="💾 *NAS backup completed successfully in ${TIME_STR}*
 
-🗂️ *Détail par dossier :*
+🗂️ *Snapshot details:*
 ${SNAPSHOT_DETAILS}"
 fi
 
-# 6. Envoi de la notification détaillée
+# 6. Send detailed notification
 send_telegram "$MESSAGE"
 
-log "Fin du pipeline en ${TIME_STR}."
+log "Backup pipeline completed in ${TIME_STR}."
