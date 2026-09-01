@@ -1,5 +1,7 @@
 # Kopia NAS Backup
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A simple automated backup pipeline for a Docker-based NAS using [Kopia](https://kopia.io/), with database-aware backups and Telegram notifications.
 
 The goal is to create consistent database dumps before running Kopia snapshots, rather than relying solely on filesystem-level backups of live databases.
