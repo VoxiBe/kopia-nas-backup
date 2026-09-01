@@ -1,0 +1,7 @@
+# Secrets / local configuration
+bot.env
+*.env
+
+# OS / editor files
+.DS_Store
+Thumbs.db
