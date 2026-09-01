@@ -6,7 +6,7 @@ START_TIME=$SECONDS
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/bot.env"
-DUMP_SCRIPT="${SCRIPT_DIR}/dump_bases.sh"
+DUMP_SCRIPT="${SCRIPT_DIR}/dump_databases.sh"
 CURL_TIMEOUT=10
 
 # --- Load environment variables ---
